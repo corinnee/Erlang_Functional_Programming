@@ -3,6 +3,13 @@
 ## Description
 This Erlang project contains various functions that perform different tasks. These functions are categorized into three sections, each corresponding to a specific question.
 
+## Table of Contents
+- [Purpose](#purpose)
+  - [Question 1](#question-1)
+  - [Question 2](#question-2)
+  - [Question 3](#question-3)
+- [Usage](#usage)
+
 ## Purpose
 The purpose of this project is to provide a set of Erlang functions that can be used for different tasks. Each function is designed to solve a specific problem or perform a particular operation. This project was completed towards part of the 'Functional Programming' module at the University of Kent. Below is a brief description of each function and its purpose:
 
