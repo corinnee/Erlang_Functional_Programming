@@ -1,0 +1,200 @@
+-module (cb830_2).
+-import (lists,[sublist/3]).
+-import (string,[len/1]).
+-export ( [pos_bids/1, add/1, success/2, winners_co/2, winners/2, init/2, sub/3, drop/2, subst/3, occurs/2, st_len/1, isxwin/1,
+		   linexwin/1, pick/2, wincol/1, isowin/1, lineowin/1]).
+
+% Erlang Utility Module
+	% This Earlang project contains a collection of functions designed to perform various operations, such as parsing and manipulating lists,
+	% calculating sums, checking conditions, and performing logical operations. 
+ 
+%-------------- Question 1 ----------------------------------------------------------------------------------------------------
+
+%--- (a) Positive Bids Filter		---			---			---			---			---			---			---			---			---		
+% Filter out bids with non-positive values.
+
+	pos_bids([]) -> [];
+
+	pos_bids([ {A,B} | Bs ]) -> 
+		if 
+			B <  0 -> pos_bids(Bs);
+			B == 0 -> pos_bids(Bs);
+			B >  0 -> [ {A,B} | pos_bids(Bs)]
+		end.	
+	
+%--- (b) Bid Success Checker	---			---			---			---			---			---			---
+% Check if the sum of bids is greater than, equal to, or less than the threshold T.
+		
+	success([],T) -> [];
+	
+	success(Bids, T) ->
+		Sum = add(pos_bids(Bids)),
+		if
+			Sum == T -> true;
+			Sum >  T -> true;
+			Sum <  T -> false
+		end.
+	
+	% Calculate the sum of a list of bids.
+
+	add([]) -> 0;
+	
+	add([{A,B}|Bs]) ->	B + add(Bs).
+		
+%---(c) Winning Bid Calculations	---			---			---			---			---			---			---
+% Calculate winning bids based on the threshold T.
+	
+	winners(T,[]) 	-> [];
+	
+	winners(T,Bids) -> 
+		winners_co(pos_bids(Bids),T).
+	
+	% Calculate winning bids recursively.
+	winners_co( [],T ) -> [];
+	
+	winners_co( [{A,B} | Bs],T)  when T > B  -> [{A,B} | winners_co(Bs,T-B)];
+	
+	winners_co( [{A,B} | Bs], T) when T =< B -> [{A,T}].
+
+
+%-------------- Question 2 ----------------------------------------------------------------------------------------------------
+
+%---(a)	Initial Substring Checker	---			---			---			---			---			---			---			---			---
+% Check if a substring exists at the beginning of a string.
+
+	init([],[])  -> false;
+	
+	init(Sub,[]) -> false;
+	
+	init([], String) -> true;
+	
+	init(Sub, String) ->
+		StringStart = lists:sublist(String,1,len(Sub)),
+		if
+			StringStart == Sub -> true;
+			true 			   -> false
+		end.
+
+%--(b)  Character Dropper ---			---			---			---			---			---			---			---			---
+% Remove the first N characters from a string.
+	
+	drop(0, St)	-> St;
+		
+	drop(N,St)	-> 
+		L = len(St),
+		if
+			N <  L -> lists:sublist(St,N+1,L);
+			N >= L -> ""
+		end.
+		
+%--(c)	Substring Replacer ---			---			---			---			---			---			---			---			---	
+% Replace a substring (Old) with another substring (New) in a string.
+
+	subst(Old,New,St) ->
+		{B,End} = occurs(Old,St),
+		Front = sub(St,1,(st_len(St))-(st_len(End))),
+		Back = drop(st_len(Old),End),
+		if
+			B == false -> St;
+			B == true  -> 
+				Front++New++Back
+		end.
+		
+	% Return the length of a string, including empty strings.
+	st_len([]) -> 0;
+	
+	st_len(X)  -> len(X).
+	
+	% Get a substring from position S to E.
+	sub(St,S,E) -> lists:sublist(St,S,E).
+	
+	% Determine if a substring (Old) occurs in a string and return a boolean and the position.
+	occurs(Old,St) ->
+		Init = init(Old,St),
+		LenSt  = st_len(St),
+		LenOld = st_len(Old),
+		if
+			LenSt < LenOld -> {false,St}; 
+			Init == true   -> {true,St};
+			Init == false  -> occurs(Old,drop(1,St))
+		end.		
+
+%-- (d)		---			---			---			---			---			---			---			---			---	
+
+%-- How would you modify your answer to (c) so that all occurrences of Old are replaced by New?
+
+%			line 89 would become Front++New++(subst(Old,New,Back))
+
+%-- How would you modify it so that only the last occurrence of Old was replaced?
+
+					
+%-------------- Question 3 --------------
+
+%--(a)	X-Win Checker ---			---			---			---			---			---			---			---			---
+% Check if a list of three elements contains three 'x' values in a row.
+
+	isxwin([X,X,X]) -> 
+		if
+			X == x 	-> true;
+			true   	-> false
+		end;
+	
+	isxwin([_,_,_]) -> false.
+	
+%--(b)	Horizontal X-Win Checker ---			---			---			---			---			---			---			---			---
+% Check if a list of lists contains a horizontal 'x' win.
+	
+	linexwin([A,B,C]) ->
+		Awin = isxwin(A),
+		Bwin = isxwin(B),
+		Cwin = isxwin(C),
+		if
+			Awin == true -> true;
+			Bwin == true -> true;
+			Cwin == true -> true;
+			true		 -> false
+		end.
+
+%--(c)	Element Picker ---			---			---			---			---			---			---			---			---	
+% Select an element from a list by index.
+	
+	pick(N,[X|Xs]) when N == 0 -> X;
+	
+	pick(N,[X|Xs]) -> pick(N-1,Xs).
+	
+%--(d) Vertical Win Checker ---			---			---			---			---			---			---			---			---
+% Check if a list of lists contains a vertical 'x' or 'o' win.	
+	wincol([A,B,C]) ->
+					% "rearranges" board so columns are now rows
+		X = linexwin([[pick(0,A), pick(0,B), pick(0,C)],
+					  [pick(1,A), pick(1,B), pick(1,C)],
+					  [pick(2,A), pick(2,B), pick(2,C)]]),
+		O = lineowin([[pick(0,A), pick(0,B), pick(0,C)],
+					  [pick(1,A), pick(1,B), pick(1,C)],
+					  [pick(2,A), pick(2,B), pick(2,C)]]),
+		if
+			X == true -> true;
+			O == true -> true;
+			true	  -> false			
+		end.
+	
+	% Functions for 'o' win checks.
+	isowin([X,X,X]) -> 
+		if
+			X == o 	-> true;
+			true   	-> false
+		end;
+	
+	isowin([_,_,_]) -> false.
+	
+	% Check if a list of three elements contains three 'o' values in a row.
+	lineowin([A,B,C]) ->
+		Awin = isowin(A),
+		Bwin = isowin(B),
+		Cwin = isowin(C),
+		if
+			Awin == true -> true;
+			Bwin == true -> true;
+			Cwin == true -> true;
+			true		 -> false
+		end.
