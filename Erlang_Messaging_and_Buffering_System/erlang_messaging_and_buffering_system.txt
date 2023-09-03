@@ -1,0 +1,93 @@
+-module(cb830).
+-export([logger/1, consumer/3,buffer/1, main/0]).
+
+logger([]) -> logger(0);
+logger(Count) -> 
+	receive
+        	{Msg} ->
+        	    io:format("[" ++ integer_to_list(Count) ++ "]: ~w~n", [Msg]),
+        	    logger(Count + 1);
+        	stop ->
+        	    ok
+    	end.
+
+%% Consumer
+
+consumer(0, _, _) -> ok;
+consumer(Count, Logger, Buffer) ->
+    %% c0 -> c1
+    Buffer ! {isEmptyQ, self()},
+    %% c1 -> c2
+    receive
+        empty ->
+            Logger ! "C: Buffer empty. I wait.",
+            receive
+                %% c2 -> c3
+                notEmpty ->
+                    Logger ! "C: Woke and getting data",
+                    consumerGo(Count, Logger, Buffer)
+            end;
+
+        %% c1 -> c3
+        notEmpty ->
+            Logger ! "C: Getting data",
+            consumerGo(Count, Logger, Buffer)
+    end.
+
+%% c3 -> c4
+consumerGo(Count, Logger, Buffer) ->
+    Buffer ! {getData, self()},
+    %% c4 -> c0
+    receive
+        {data, Msg} ->
+            Logger ! io_lib:format("C: Got Data: ~p = ~s", [Count, Msg]),
+            consumer(Count + 1, Logger, Buffer);
+        stop -> ok
+    end.
+
+buffer(MaxSize) ->
+    buffer([], MaxSize, none, none).
+
+buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer) ->
+    receive
+        {data, Msg} ->
+            buffer(BufferData ++ [Msg], MaxSize, WaitingConsumer, WaitingProducer);
+
+        {getData, Sender} ->
+            [X | Xs] = BufferData,
+            Sender ! {data, X},
+            buffer(Xs, MaxSize, WaitingConsumer, WaitingProducer);
+        {isFullQ, Sender} ->
+            L = length(BufferData),
+            if
+                L < MaxSize -> Sender ! notFull,
+                                buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer);
+                L == MaxSize -> Sender ! full,
+                                buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer);
+                L > MaxSize -> Sender ! full,
+                                buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer)
+            end;
+
+        {isEmptyQ, Sender} ->
+            L = length(BufferData),
+            E = 0,
+            if
+                L > E -> Sender ! notEmpty,
+                         buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer);
+                L == E -> Sender ! empty,
+                          buffer(BufferData, MaxSize, WaitingConsumer, WaitingProducer)
+            end
+    end.
+
+main() ->
+    Logger = spawn(?MODULE, logger, [0]),
+    Buffer = spawn(?MODULE, buffer, [5]),
+    spawn(?MODULE, consumer, [0, Logger, Buffer]).
+									
+
+
+
+
+
+
+
